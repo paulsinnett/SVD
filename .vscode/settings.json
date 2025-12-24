@@ -67,5 +67,6 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "SVD.slnx"
+    "dotnet.defaultSolution": "SVD.slnx",
+    "omnisharp.useModernNet": false
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
 
 public class SVD
 {
@@ -13,7 +14,7 @@ public class SVD
         return centre /= points.Count;
     }
 
-    static public Matrix4x4 CalculateCovarianceMatrix(List<Vector3> points, Vector3 point)
+    static public Matrix4x4 CalculateCovarianceMatrix(List<Vector3> points, Vector3 centroid)
     {
         float x2 = 0;
         float y2 = 0;
@@ -21,14 +22,101 @@ public class SVD
         float xy = 0;
         float xz = 0;
         float yz = 0;
-        Matrix4x4 covariance = new Matrix4x4();
-        return Matrix4x4.identity;
+        foreach (Vector3 point in points)
+        {
+            Vector3 d = point - centroid;
+            float x = d.x;
+            float y = d.y;
+            float z = d.z;
+            x2 += x * x;
+            y2 += y * y;
+            z2 += z * z;
+            xy += x * y;
+            xz += x * z;
+            yz += y * z;
+        }
+        return new Matrix4x4(
+            new Vector4(x2, xy, xz, 0),
+            new Vector4(xy, y2, yz, 0),
+            new Vector4(xz, yz, z2, 0),
+            new Vector4(0, 0, 0, 1)
+        );
+    }
+
+    static public Matrix4x4 GivensMatrix(int row, int column, float angle)
+    {
+        math.sincos(angle, out float sin, out float cos);
+        Matrix4x4 givens = Matrix4x4.identity;
+        givens[column, row] = cos;
+        givens[column, row] = sin;
+        givens[column, row] = -sin;
+        givens[column, row] = cos;
+        return givens;
+    }
+
+    static public void FindLargestOffDiagonalValues(Matrix4x4 matrix, out int row, out int column, out float maximum)
+    {
+        row = 0;
+        column = 1;
+        maximum = math.abs(matrix.m01);
+        float m02 = math.abs(matrix.m02);
+        if (m02 > maximum)
+        {
+            maximum = m02;
+            column = 2; 
+        }
+        float m12 = math.abs(matrix.m12);
+        if (m12 > maximum)
+        {
+            maximum = m12;
+            row = 1;
+            column = 2;
+        }
+    }
+
+    static public Matrix4x4 FindZeroGivensMatrix(Matrix4x4 matrix, int row, int column)
+    {
+        float angle = 0.5f * math.atan2(2.0f * matrix[row, column], matrix[column, column] - matrix[row, row]);
+        Matrix4x4 givens = GivensMatrix(row, column, angle);
+        return givens;
+    }
+
+    static public Matrix4x4 JacobiEigenDecomposition(Matrix4x4 matrix, float error)
+    {
+        float maximum = 0;
+        Matrix4x4 eigenVectors = Matrix4x4.identity;
+        do
+        {
+            FindLargestOffDiagonalValues(matrix, out int row, out int column, out maximum);
+            Matrix4x4 zero = FindZeroGivensMatrix(matrix, row, column);
+            matrix *= zero.transpose * matrix * zero;
+            eigenVectors *= zero;
+        }
+        while (maximum > error);
+        return eigenVectors;
     }
 
     static public Plane FindBestFit(List<Vector3> points)
     {
         Vector3 centroid = GetCentroid(points);
         Matrix4x4 covariance = CalculateCovarianceMatrix(points, centroid);
-        return new Plane();
+        Matrix4x4 eigenVectors = JacobiEigenDecomposition(covariance, 0.001f);
+        float e1 = eigenVectors[0, 0];
+        float e2 = eigenVectors[1, 1];
+        float e3 = eigenVectors[2, 2];
+        int column = 0;
+        float minimum = e1;
+        if (e2 < minimum)
+        {
+            minimum = e2;
+            column = 1;
+        }
+        if (e3 < minimum)
+        {
+            column = 2;
+        }
+        Vector3 normal = eigenVectors.GetColumn(column);
+        normal.Normalize();
+        return new Plane(normal, centroid);
     }
 }
