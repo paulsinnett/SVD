@@ -5,6 +5,26 @@ using UnityEngine;
 
 public class TestSVD
 {
+    public class CompareVector3WithTolerance : IEqualityComparer<Vector3>
+    {
+        private readonly float tolerance;
+
+        public CompareVector3WithTolerance(float tolerance)
+        {
+            this.tolerance = tolerance;
+        }
+
+        public bool Equals(Vector3 a, Vector3 b)
+        {
+            return Vector3.Distance(a, b) <= tolerance;
+        }
+
+        public int GetHashCode(Vector3 obj)
+        {
+            throw new System.NotImplementedException();
+        }
+    }
+
     [Test]
     public void TestCentroid()
     {
@@ -78,5 +98,24 @@ public class TestSVD
         Assert.That(row, Is.EqualTo(0));
         Assert.That(column, Is.EqualTo(2));
         Assert.That(largest, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void TestJacobiDecomposition()
+    {
+        Matrix4x4 matrix = new Matrix4x4(
+            new Vector4(4, 3, 0, 0),
+            new Vector4(3, 1, 0, 0),
+            new Vector4(0, 0, 2, 0),
+            new Vector4(0, 0, 0, 1)
+        );
+
+        float [] values = new float [3];
+        Vector3 [] vectors = new Vector3 [3];
+        SVD.JacobiEigenDecomposition(matrix, 0.001f, values, vectors);
+
+        Assert.That(values, Is.EqualTo(new float [] { -0.8541f, 5.8541f, 2f }).Within(0.001f));
+        Assert.That(vectors[0], Is.EqualTo(new Vector3(0.52573f, -0.85065f, 0)).Using(new CompareVector3WithTolerance(0.001f)));
+        Assert.That(vectors[1], Is.EqualTo(new Vector3(0.85065f, 0.52573f, 0)).Using(new CompareVector3WithTolerance(0.001f)));
     }
 }

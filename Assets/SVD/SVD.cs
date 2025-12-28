@@ -47,10 +47,10 @@ public class SVD
     {
         math.sincos(angle, out float sin, out float cos);
         Matrix4x4 givens = Matrix4x4.identity;
-        givens[column, row] = cos;
-        givens[column, row] = sin;
+        givens[row, row] = cos;
+        givens[row, column] = sin;
         givens[column, row] = -sin;
-        givens[column, row] = cos;
+        givens[column, column] = cos;
         return givens;
     }
 
@@ -81,42 +81,45 @@ public class SVD
         return givens;
     }
 
-    static public Matrix4x4 JacobiEigenDecomposition(Matrix4x4 matrix, float error)
+    static public void JacobiEigenDecomposition(Matrix4x4 matrix, float error, float [] values, Vector3 [] vectors)
     {
-        float maximum = 0;
+        float maximum;
         Matrix4x4 eigenVectors = Matrix4x4.identity;
         do
         {
             FindLargestOffDiagonalValues(matrix, out int row, out int column, out maximum);
             Matrix4x4 zero = FindZeroGivensMatrix(matrix, row, column);
-            matrix *= zero.transpose * matrix * zero;
+            matrix = zero.transpose * matrix * zero;
             eigenVectors *= zero;
         }
         while (maximum > error);
-        return eigenVectors;
+        for (int index = 0; index < values.Length; index++)
+        {
+            values[index] = matrix[index, index];
+            vectors[index] = eigenVectors.GetColumn(index);
+        }
     }
 
-    static public Plane FindBestFit(List<Vector3> points)
+    static public void FindBestFit(List<Vector3> points, out Plane plane, out Vector3 centroid)
     {
-        Vector3 centroid = GetCentroid(points);
+        centroid = GetCentroid(points);
         Matrix4x4 covariance = CalculateCovarianceMatrix(points, centroid);
-        Matrix4x4 eigenVectors = JacobiEigenDecomposition(covariance, 0.001f);
-        float e1 = eigenVectors[0, 0];
-        float e2 = eigenVectors[1, 1];
-        float e3 = eigenVectors[2, 2];
+        float [] values = new float [3];
+        Vector3 [] vectors = new Vector3 [3];
+        JacobiEigenDecomposition(covariance, 0.001f, values, vectors);
         int column = 0;
-        float minimum = e1;
-        if (e2 < minimum)
+        float minimum = values[0];
+        if (values[1] < minimum)
         {
-            minimum = e2;
+            minimum = values[1];
             column = 1;
         }
-        if (e3 < minimum)
+        if (values[2] < minimum)
         {
             column = 2;
         }
-        Vector3 normal = eigenVectors.GetColumn(column);
+        Vector3 normal = vectors[column];
         normal.Normalize();
-        return new Plane(normal, centroid);
+        plane = new Plane(normal, centroid);
     }
 }
