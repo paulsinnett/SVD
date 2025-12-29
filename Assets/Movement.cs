@@ -50,6 +50,7 @@ public class Movement : MonoBehaviour
         SVD.FindBestFit(terrainSamples, out Plane plane, out Vector3 centroid);
         Vector3 direction = Vector3.Cross(Vector3.right, plane.normal);
         transform.rotation = Quaternion.LookRotation(direction, plane.normal);
+        centroid += plane.normal * 0.01f;
         transform.position = centroid;
     }
 }

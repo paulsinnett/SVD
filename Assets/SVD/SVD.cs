@@ -119,6 +119,10 @@ public class SVD
             column = 2;
         }
         Vector3 normal = vectors[column];
+        if (normal.y <= 0)
+        {
+            normal = -normal;
+        }
         normal.Normalize();
         plane = new Plane(normal, centroid);
     }
